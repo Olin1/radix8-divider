@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Simulation
+sim_build/
+obj_dir/
+*.vcd
+*.fst
+*.log
+
+# Formal
+formal/*/
+!formal/*.sby
+!formal/*.sv
+
+# ASIC generated
+asic/runs/
+
+# FPGA generated
+fpga/build/
+
+# Misc
+.DS_Store
