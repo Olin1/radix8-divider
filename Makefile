@@ -31,3 +31,10 @@ clean:
 >rm -rf formal/radix2_bmc
 >rm -rf formal/radix2_cover
 >rm -f results/radix2_generic.json
+
+.PHONY: hypothesis regression
+
+hypothesis:
+>PYTHONPATH="$(CURDIR)/models" $(PYTHON) -m pytest -v verification/test_reference_models.py
+
+regression: lint model hypothesis sim formal cover synth

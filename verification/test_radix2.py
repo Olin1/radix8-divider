@@ -375,3 +375,138 @@ async def test_reset_during_operation(dut):
         17,
         result,
     )
+
+
+def classify_transaction(dividend, divisor, quotient, remainder, width):
+    mask = (1 << width) - 1
+    bins = set()
+
+    if dividend == 0:
+        bins.add("dividend_zero")
+
+    if dividend == mask:
+        bins.add("dividend_max")
+
+    if divisor == 0:
+        bins.add("divisor_zero")
+
+    if divisor == 1:
+        bins.add("divisor_one")
+
+    if divisor != 0 and (divisor & (divisor - 1)) == 0:
+        bins.add("divisor_power_of_two")
+
+    if divisor != 0 and dividend < divisor:
+        bins.add("dividend_lt_divisor")
+
+    if divisor != 0 and dividend == divisor:
+        bins.add("dividend_eq_divisor")
+
+    if divisor != 0 and remainder == 0:
+        bins.add("exact_division")
+
+    if divisor != 0 and remainder != 0:
+        bins.add("nonzero_remainder")
+
+    if quotient == 0:
+        bins.add("quotient_zero")
+
+    if quotient != 0:
+        bins.add("quotient_nonzero")
+
+    return bins
+
+
+@cocotb.test()
+async def test_functional_coverage(dut):
+    """Exercise and require important functional operand/result classes."""
+
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+
+    await reset_dut(dut)
+
+    width = len(dut.dividend)
+    mask = (1 << width) - 1
+
+    coverage = set()
+
+    directed_vectors = [
+        (0, 1),
+        (42, 0),
+        (42, 1),
+        (3, 7),
+        (7, 7),
+        (100, 4),
+        (100, 7),
+        (100, 8),
+        (mask, 3),
+    ]
+
+    rng = random.Random(0xC0FEBABE)
+
+    random_vectors = [
+        (
+            rng.getrandbits(width),
+            rng.getrandbits(width),
+        )
+        for _ in range(200)
+    ]
+
+    for dividend, divisor in directed_vectors + random_vectors:
+        dividend &= mask
+        divisor &= mask
+
+        rtl_result = await run_division(
+            dut,
+            dividend,
+            divisor,
+        )
+
+        check_result(
+            width,
+            dividend,
+            divisor,
+            rtl_result,
+        )
+
+        quotient, remainder, _ = rtl_result
+
+        coverage |= classify_transaction(
+            dividend,
+            divisor,
+            quotient,
+            remainder,
+            width,
+        )
+
+    required_bins = {
+        "dividend_zero",
+        "dividend_max",
+        "divisor_zero",
+        "divisor_one",
+        "divisor_power_of_two",
+        "dividend_lt_divisor",
+        "dividend_eq_divisor",
+        "exact_division",
+        "nonzero_remainder",
+        "quotient_zero",
+        "quotient_nonzero",
+    }
+
+    missing = required_bins - coverage
+
+    dut._log.info(
+        "Functional coverage: %d/%d bins",
+        len(coverage & required_bins),
+        len(required_bins),
+    )
+
+    dut._log.info(
+        "Covered bins: %s",
+        ", ".join(sorted(coverage)),
+    )
+
+    assert not missing, (
+        "Missing functional coverage bins: "
+        + ", ".join(sorted(missing))
+    )
