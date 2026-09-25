@@ -26,3 +26,5 @@ fpga/build/
 
 # Misc
 .DS_Store
+results/*_generic.json
+results.xml

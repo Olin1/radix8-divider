@@ -1,0 +1,18 @@
+read_verilog -sv rtl/radix2_divider.sv
+
+hierarchy -check -top radix2_divider
+
+proc
+opt
+fsm
+opt
+memory
+opt
+techmap
+opt
+
+check
+
+stat
+
+write_json results/radix2_generic.json
