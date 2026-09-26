@@ -28,3 +28,7 @@ fpga/build/
 .DS_Store
 results/*_generic.json
 results.xml
+reports/runs/
+reports/site/
+asic/*/runs/
+verification/sim_build/

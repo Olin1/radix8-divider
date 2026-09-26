@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+import argparse, os, shutil
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+def latest_run():
+    base = ROOT / 'asic' / 'radix2' / 'runs'
+    if not base.exists(): return None
+    runs = sorted([p for p in base.glob('RUN_*') if p.is_dir()])
+    return runs[-1] if runs else None
+
+def clean_dir(path: Path):
+    if path.exists(): shutil.rmtree(path)
+    path.mkdir(parents=True, exist_ok=True)
+
+def export_reports():
+    site = ROOT / 'reports' / 'site'
+    dest = Path(os.environ.get('WINDOWS_REPORT_DIR','/mnt/c/Users/olino/Desktop/radix8-reports'))
+    if not site.exists():
+        print('No report site found; run `make report` first.'); return False
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(site, dest, dirs_exist_ok=True)
+    (dest/'README.txt').write_text('Open index.html to browse the Radix-n thesis EDA/DV dashboard.\n',encoding='utf-8')
+    print(f'Reports exported to: {dest}')
+    return True
+
+def export_layout():
+    run = latest_run()
+    if run is None:
+        print('No LibreLane radix-2 RUN_* directory found.'); return False
+    base = Path(os.environ.get('WINDOWS_LAYOUT_DIR','/mnt/c/Users/olino/Desktop/radix8-layouts'))
+    latest_dest = base/'radix2'/'latest'
+    archive_dest = base/'radix2'/'archive'/run.name
+    clean_dir(latest_dest); archive_dest.mkdir(parents=True, exist_ok=True)
+    wanted={'.gds','.def','.odb','.lef','.sdc','.spef'}; copied=[]
+    final=run/'final'
+    if final.exists():
+        for src in final.rglob('*'):
+            if src.is_file() and src.suffix.lower() in wanted:
+                rel=src.relative_to(final)
+                for root in (latest_dest,archive_dest):
+                    dst=root/'final'/rel; dst.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(src,dst)
+                copied.append(src)
+    stream=sorted(run.glob('*-klayout-streamout/*.gds'))
+    if stream:
+        src=stream[-1]
+        shutil.copy2(src,latest_dest/'radix2_divider.klayout.gds')
+        shutil.copy2(src,archive_dest/'radix2_divider.klayout.gds')
+        copied.append(src)
+    baseline=ROOT/'results'/'radix2_physical_baseline.md'
+    if baseline.exists():
+        shutil.copy2(baseline,latest_dest/baseline.name); shutil.copy2(baseline,archive_dest/baseline.name)
+    (latest_dest/'_SOURCE_RUN.txt').write_text(str(run)+'\n',encoding='utf-8')
+    (archive_dest/'_SOURCE_RUN.txt').write_text(str(run)+'\n',encoding='utf-8')
+    print(f'Latest layout exported to: {latest_dest}')
+    print(f'Archived layout exported to: {archive_dest}')
+    print(f'Physical files copied: {len(copied)}')
+    return bool(copied)
+
+def main():
+    p=argparse.ArgumentParser(); p.add_argument('--reports',action='store_true'); p.add_argument('--layout',action='store_true'); p.add_argument('--all',action='store_true'); a=p.parse_args()
+    if not (a.reports or a.layout or a.all): a.all=True
+    ok=True
+    if a.reports or a.all: ok=export_reports() and ok
+    if a.layout or a.all: ok=export_layout() and ok
+    return 0 if ok else 1
+
+if __name__=='__main__': raise SystemExit(main())
