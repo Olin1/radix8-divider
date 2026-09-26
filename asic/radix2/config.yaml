@@ -1,0 +1,14 @@
+meta:
+  flow: Classic
+
+PDK: sky130A
+
+DESIGN_NAME: radix2_divider
+
+VERILOG_FILES:
+  - dir::../../rtl/radix2_divider.sv
+
+CLOCK_PORT: clk
+CLOCK_PERIOD: 20.0
+
+FP_CORE_UTIL: 35
